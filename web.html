@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pencarian Data Orang Hilang</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="des.css" />
+</head>
+<body>
+    <div class="video-background">
+        <video autoplay muted loop id="bg-video">
+            <source src="vid/search3.mp4" type="video/mp4">
+            Your browser does not support HTML5 video.
+        </video>
+    </div>
+    <div class="container">
+        <h1>Pencarian Data Orang Hilang</h1>
+
+        <div class="input-group">
+            <label for="size">Ukuran Input (n): </label>
+            <input type="number" id="size" placeholder="Jumlah data" min="1" />
+        </div>
+
+        <div class="input-group">
+            <label for="niks">NIK Target (10 angka): </label>
+            <input type="text" id="niks" placeholder="Masukkan NIK" />
+        </div>
+
+        <button id="searchButton">Cari</button>
+
+        <div id="result" class="result-box">
+            <h3>Hasil Pencarian:</h3>
+            <p id="name"></p>
+            <p id="lostDays"></p>
+            <p id="age"></p>
+            <p id="job"></p>
+            <p id="location"></p>
+        </div>
+
+        <h3>Waktu Eksekusi</h3>
+        <p id="seqTime"></p>
+        <p id="ternTime"></p>
+
+        <h3>Diagram Waktu Eksekusi Berdasarkan Ukuran N</h3>
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <script>
+        let seqTimes = [];
+        let ternTimes = [];
+        let sizes = [];
+
+        document.getElementById("searchButton").addEventListener("click", searchData);
+
+        async function searchData() {
+            const size = parseInt(document.getElementById("size").value);
+            const nikInput = document.getElementById("niks").value;
+            const nikList = nikInput.split(",").map((nik) => parseInt(nik.trim()));
+
+            if (nikList.length !== 1 || !size) {
+                alert("Harap masukkan 1 NIK yang valid dan ukuran data!");
+                return;
+            }
+
+            try {
+                const response = await fetch("http://localhost:8080/search", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ size, nikList }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.result) {
+                    document.getElementById("name").textContent = `Nama: ${data.result.name}`;
+                    document.getElementById("lostDays").textContent = `Lama Hilang: ${data.result.lostDays} hari`;
+                    document.getElementById("age").textContent = `Umur: ${data.result.age} tahun`;
+                    document.getElementById("job").textContent = `Pekerjaan: ${data.result.job}`;
+                    document.getElementById("location").textContent = `Lokasi: ${data.result.location}`;
+                } else {
+                    document.getElementById("name").textContent = "Data tidak ditemukan.";
+                    document.getElementById("lostDays").textContent = "";
+                    document.getElementById("age").textContent = "";
+                    document.getElementById("job").textContent = "";
+                    document.getElementById("location").textContent = "";
+                }
+
+                document.getElementById("seqTime").textContent = `Waktu Pencarian Sequential: ${data.seqTime} ms`;
+                document.getElementById("ternTime").textContent = `Waktu Pencarian Ternary: ${data.ternTime} ms`;
+
+                seqTimes.push(data.seqTime);
+                ternTimes.push(data.ternTime);
+                sizes.push(size);
+
+                renderChart();
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Terjadi kesalahan saat memproses permintaan. Pastikan server berjalan.");
+            }
+        }
+        function renderChart() {
+    const ctx = document.getElementById("myChart").getContext("2d");
+
+    if (window.myChart instanceof Chart) {
+        window.myChart.destroy();
+    }
+
+    window.myChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: sizes,
+            datasets: [
+                {
+                    label: "Pencarian Sequential (ms)",
+                    data: seqTimes,
+                    borderColor: "#ff4b5c",
+                    backgroundColor: "rgba(255, 75, 92, 0.2)",
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: "#fff",
+                    pointBorderColor: "#ff4b5c",
+                },
+                {
+                    label: "Pencarian Ternary (ms)",
+                    data: ternTimes,
+                    borderColor: "#4caf50",
+                    backgroundColor: "rgba(76, 175, 80, 0.2)",
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: "#fff",
+                    pointBorderColor: "#4caf50",
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            animation: {
+                duration: 1000,
+                easing: 'easeInOutQuad',
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: "#000",
+                    },
+                },
+                tooltip: {
+                    backgroundColor: "rgba(255, 255, 255, 0.9)",
+                    titleColor: "#000",
+                    bodyColor: "#000",
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: "Waktu Eksekusi (ms)",
+                        color: "#000",
+                    },
+                    ticks: {
+                        color: "#000",
+                    },
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: "Ukuran N (Jumlah Data)",
+                        color: "#000",
+                    },
+                    ticks: {
+                        color: "#000",
+                    },
+                },
+            },
+        },
+    });
+}
+    </script>
+</body>
+</html>
